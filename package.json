@@ -1,14 +1,13 @@
 {
   "name": "vidmate-api",
   "version": "1.0.0",
-  "description": "Video Downloader API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "@distube/ytdl-core": "^4.15.1"
+    "@distube/ytdl-core": "^4.15.9",
+    "cors": "^2.8.5"
   }
 }
