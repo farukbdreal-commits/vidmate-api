@@ -1,39 +1,105 @@
-const express = require('express');
-const cors = require('cors');
-const ytdl = require('@distube/ytdl-core');
+const express = require("express");
+const cors = require("cors");
+
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
+app.use(express.json());
 
-app.get('/download', async (req, res) => {
-    const videoUrl = req.query.url;
-    if (!videoUrl) {
-        return res.status(400).json({ success: false, error: "অনুগ্রহ করে একটি URL দিন" });
-    }
 
-    try {
-        const info = await ytdl.getInfo(videoUrl);
-        
-        // সর্বোচ্চ কোয়ালিটির .mp4 ফাইল ফিল্টার করা
-        const format = ytdl.chooseFormat(info.formats, { 
-            quality: 'highestvideo', 
-            filter: format => format.container === 'mp4' && format.hasAudio && format.hasVideo
-        });
+// ভিডিও লিস্ট
+const videos = [
+  {
+    id: 1,
+    title: "My First Video",
+    category: "Music",
+    thumbnail: "https://example.com/thumb1.jpg",
+    videoUrl: "https://example.com/video1.mp4",
+    downloadUrl: "https://example.com/video1.mp4"
+  },
+  {
+    id: 2,
+    title: "Nature Video",
+    category: "Nature",
+    thumbnail: "https://example.com/thumb2.jpg",
+    videoUrl: "https://example.com/video2.mp4",
+    downloadUrl: "https://example.com/video2.mp4"
+  },
+  {
+    id: 3,
+    title: "Technology Video",
+    category: "Tech",
+    thumbnail: "https://example.com/thumb3.jpg",
+    videoUrl: "https://example.com/video3.mp4",
+    downloadUrl: "https://example.com/video3.mp4"
+  }
+];
 
-        if (format && format.url) {
-            res.json({
-                success: true,
-                title: info.videoDetails.title,
-                downloadUrl: format.url
-            });
-        } else {
-            res.status(444).json({ success: false, error: "কোনো সরাসরি MP4 ফাইল পাওয়া যায়নি।" });
-        }
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: "লিঙ্কটি প্রসেস করতে সমস্যা হয়েছে।" });
-    }
+
+// API চালু আছে কিনা দেখার জন্য
+app.get("/", (req, res) => {
+  res.json({
+    app: "Minitube API",
+    status: "Running"
+  });
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// সব ভিডিও দেখাবে
+app.get("/videos", (req, res) => {
+  res.json(videos);
+});
+
+
+// একটি ভিডিও
+app.get("/videos/:id", (req, res) => {
+
+  const video = videos.find(
+    v => v.id == req.params.id
+  );
+
+  if(!video){
+    return res.status(404).json({
+      message:"Video not found"
+    });
+  }
+
+  res.json(video);
+
+});
+
+
+// ক্যাটাগরি অনুযায়ী ভিডিও
+app.get("/category/:name", (req,res)=>{
+
+  const result = videos.filter(
+    v => v.category.toLowerCase() ==
+    req.params.name.toLowerCase()
+  );
+
+  res.json(result);
+
+});
+
+
+// সার্চ
+app.get("/search/:text",(req,res)=>{
+
+  const result = videos.filter(
+    v => v.title.toLowerCase()
+    .includes(req.params.text.toLowerCase())
+  );
+
+  res.json(result);
+
+});
+
+
+// Server Start
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT,()=>{
+  console.log(
+    "Minitube API running on port " + PORT
+  );
+})
