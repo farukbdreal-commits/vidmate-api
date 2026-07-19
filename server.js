@@ -1,105 +1,54 @@
-const express = require("express");
-const cors = require("cors");
-
+const express = require('express');
+const cors = require('cors');
+const ytdl = require('@distube/ytdl-core');
 const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-
-// ভিডিও লিস্ট
-const videos = [
-  {
-    id: 1,
-    title: "My First Video",
-    category: "Music",
-    thumbnail: "https://example.com/thumb1.jpg",
-    videoUrl: "https://example.com/video1.mp4",
-    downloadUrl: "https://example.com/video1.mp4"
-  },
-  {
-    id: 2,
-    title: "Nature Video",
-    category: "Nature",
-    thumbnail: "https://example.com/thumb2.jpg",
-    videoUrl: "https://example.com/video2.mp4",
-    downloadUrl: "https://example.com/video2.mp4"
-  },
-  {
-    id: 3,
-    title: "Technology Video",
-    category: "Tech",
-    thumbnail: "https://example.com/thumb3.jpg",
-    videoUrl: "https://example.com/video3.mp4",
-    downloadUrl: "https://example.com/video3.mp4"
-  }
-];
-
-
-// API চালু আছে কিনা দেখার জন্য
-app.get("/", (req, res) => {
-  res.json({
-    app: "Minitube API",
-    status: "Running"
-  });
-});
-
-
-// সব ভিডিও দেখাবে
-app.get("/videos", (req, res) => {
-  res.json(videos);
-});
-
-
-// একটি ভিডিও
-app.get("/videos/:id", (req, res) => {
-
-  const video = videos.find(
-    v => v.id == req.params.id
-  );
-
-  if(!video){
-    return res.status(404).json({
-      message:"Video not found"
-    });
-  }
-
-  res.json(video);
-
-});
-
-
-// ক্যাটাগরি অনুযায়ী ভিডিও
-app.get("/category/:name", (req,res)=>{
-
-  const result = videos.filter(
-    v => v.category.toLowerCase() ==
-    req.params.name.toLowerCase()
-  );
-
-  res.json(result);
-
-});
-
-
-// সার্চ
-app.get("/search/:text",(req,res)=>{
-
-  const result = videos.filter(
-    v => v.title.toLowerCase()
-    .includes(req.params.text.toLowerCase())
-  );
-
-  res.json(result);
-
-});
-
-
-// Server Start
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT,()=>{
-  console.log(
-    "Minitube API running on port " + PORT
-  );
-})
+// CORS এনাবল করা যাতে আপনার মোবাইল অ্যাপ থেকে সহজে রিকোয়েস্ট পাঠানো যায়
+app.use(cors());
+
+// হোম রুট (টেস্ট করার জন্য)
+app.get('/', (req, res) => {
+    res.send('VidMate API Server is Running Successfully!');
+});
+
+// মেইন ডাউনলোড রুট
+app.get('/download', async (req, res) => {
+    const videoUrl = req.query.url; // অ্যাপ থেকে পাঠানো ইউটিউব লিংক
+
+    if (!videoUrl) {
+        return res.status(400).json({ error: 'দয়া করে একটি ইউটিউব লিংক দিন।' });
+    }
+
+    try {
+        // ইউটিউব থেকে ভিডিওর সমস্ত ইনফরমেশন আনা
+        const info = await ytdl.getInfo(videoUrl);
+        
+        // অডিও এবং ভিডিও দুটোই আছে এমন হাইয়েস্ট কোয়ালিটি (সাধারণত 360p বা 720p) mp4 ফরম্যাট ফিল্টার করা
+        const format = ytdl.chooseFormat(info.formats, { 
+            quality: 'highest', 
+            filter: 'audioandvideo' 
+        });
+
+        if (!format) {
+            return res.status(404).json({ error: 'কোনো ডাউনলোডেবল mp4 লিংক পাওয়া যায়নি।' });
+        }
+
+        // অ্যাপের জন্য রেসপন্স পাঠানো
+        res.json({
+            title: info.videoDetails.title,
+            author: info.videoDetails.author.name,
+            thumbnail: info.videoDetails.thumbnails[0].url,
+            duration: info.videoDetails.lengthSeconds,
+            downloadUrl: format.url // এই লিংকটি দিয়ে অ্যাপে ভিডিও প্লে ও ডাউনলোড হবে
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'ভিডিওটি প্রসেস করতে সমস্যা হয়েছে। লিংকটি সঠিক কিনা চেক করুন।' });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
