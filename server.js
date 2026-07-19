@@ -14,17 +14,28 @@ app.get('/', (req, res) => {
 
 // মেইন ডাউনলোড রুট
 app.get('/download', async (req, res) => {
-    const videoUrl = req.query.url; // অ্যাপ থেকে পাঠানো ইউটিউব লিংক
+    let videoUrl = req.query.url; // অ্যাপ থেকে পাঠানো ইউটিউব লিংক
 
     if (!videoUrl) {
         return res.status(400).json({ error: 'দয়া করে একটি ইউটিউব লিংক দিন।' });
     }
 
     try {
+        // যদি মোবাইলের শর্ট লিংক (youtu.be) হয়, সেটাকে মেইন লিংকে রূপান্তর করা
+        if (videoUrl.includes('youtu.be/')) {
+            const videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+            videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        }
+
+        // ইউটিউব লিংকটি সঠিক কিনা যাচাই করা
+        if (!ytdl.validateURL(videoUrl)) {
+            return res.status(400).json({ error: 'লিংকটি সঠিক নয়। আবার চেক করুন।' });
+        }
+
         // ইউটিউব থেকে ভিডিওর সমস্ত ইনফরমেশন আনা
         const info = await ytdl.getInfo(videoUrl);
         
-        // অডিও এবং ভিডিও দুটোই আছে এমন হাইয়েস্ট কোয়ালিটি (সাধারণত 360p বা 720p) mp4 ফরম্যাট ফিল্টার করা
+        // অডিও এবং ভিডিও দুটোই আছে এমন হাইয়েস্ট কোয়ালিটি mp4 ফরম্যাট ফিল্টার করা
         const format = ytdl.chooseFormat(info.formats, { 
             quality: 'highest', 
             filter: 'audioandvideo' 
@@ -37,15 +48,13 @@ app.get('/download', async (req, res) => {
         // অ্যাপের জন্য রেসপন্স পাঠানো
         res.json({
             title: info.videoDetails.title,
-            author: info.videoDetails.author.name,
             thumbnail: info.videoDetails.thumbnails[0].url,
-            duration: info.videoDetails.lengthSeconds,
             downloadUrl: format.url // এই লিংকটি দিয়ে অ্যাপে ভিডিও প্লে ও ডাউনলোড হবে
         });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'ভিডিওটি প্রসেস করতে সমস্যা হয়েছে। লিংকটি সঠিক কিনা চেক করুন।' });
+        res.status(500).json({ error: 'ভিডিওটি প্রসেস করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।' });
     }
 });
 
